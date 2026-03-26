@@ -535,7 +535,142 @@ bcrypt>=4.0.0
 
 ---
 
-## 12. 开发阶段规划
+## 12. 系统设置界面规范
+
+系统设置页面（`settings_page.py`）采用 QFluentWidgets 的 `SettingCardGroup` 分组卡片布局，左侧分类导航 + 右侧内容区域。**仅超级管理员可见**（导航栏中对其他角色隐藏）。
+
+### 12.1 布局原型
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  系统设置                                                      │
+├──────────────┬───────────────────────────────────────────────┤
+│  外观与语言   │                                               │
+│  数据与存储   │   ┌─── 外观与语言 ────────────────────────┐   │
+│  安全与账户   │   │                                       │   │
+│  导入与导出   │   │  主题模式        [浅色 ▼]             │   │
+│  关于         │   │  界面语言        [简体中文 ▼]         │   │
+│              │   │  字体大小        [中 (14px) ▼]        │   │
+│              │   │  启动时最大化     [● 开]               │   │
+│              │   │                                       │   │
+│              │   └───────────────────────────────────────┘   │
+│              │                                               │
+│              │   ┌─── 预览 ───────────────────────────────┐   │
+│              │   │  [实时主题预览示意区域]                  │   │
+│              │   └───────────────────────────────────────┘   │
+└──────────────┴───────────────────────────────────────────────┘
+```
+
+### 12.2 分组与配置项详细定义
+
+#### 分组 1：外观与语言
+
+| 配置项 | 控件类型 | 选项 / 范围 | 默认值 | 写入 config.ini |
+| :--- | :--- | :--- | :--- | :--- |
+| 主题模式 | `ComboBoxSettingCard` | 浅色 / 深色 / 跟随系统 | 浅色 | `[app] theme` |
+| 界面语言 | `ComboBoxSettingCard` | 简体中文 / English | 简体中文 | `[app] language` |
+| 字体大小 | `ComboBoxSettingCard` | 小(12px) / 中(14px) / 大(16px) | 中(14px) | `[app] font_size` |
+| 启动时最大化 | `SwitchSettingCard` | 开 / 关 | 关 | `[app] window_maximized` |
+
+> 主题/字体修改后**实时预览**，点击"应用"后重启生效（或动态热更新）。
+
+#### 分组 2：数据与存储
+
+| 配置项 | 控件类型 | 说明 | 写入 config.ini |
+| :--- | :--- | :--- | :--- |
+| 数据库文件路径 | `PushSettingCard` (只读展示 + 打开文件夹) | 显示当前 `bom.db` 的绝对路径 | `[database] path` |
+| 立即备份数据库 | `PushSettingCard` (按钮) | 将 `bom.db` 复制至同目录，命名 `bom_backup_YYYYMMDD_HHMMSS.db`，操作后写入审计日志 | — |
+| 启动时自动备份 | `SwitchSettingCard` | 开启后每次启动保留最近 7 份备份，超出自动删除最旧的 | `[database] auto_backup` |
+| 备份保留份数 | `SpinBoxSettingCard` | 范围 1 ~ 30，默认 7 | `[database] backup_keep_count` |
+| 默认导出目录 | `PushSettingCard` (文件夹选择) | Excel 导出时的默认保存目录 | `[export] default_export_dir` |
+
+#### 分组 3：安全与账户
+
+| 配置项 | 控件类型 | 说明 | 写入 config.ini |
+| :--- | :--- | :--- | :--- |
+| 密码最短长度 | `SpinBoxSettingCard` | 范围 6 ~ 32，默认 8 | `[security] min_password_length` |
+| 密码复杂度要求 | `CheckBoxGroup`（多选） | ☑ 大写字母 ☑ 数字 ☐ 特殊字符 | `[security] pwd_require_upper` 等 |
+| 会话超时时间 | `ComboBoxSettingCard` | 不超时 / 1小时 / 4小时 / 8小时 | 不超时 | `[security] session_timeout_minutes` |
+| 登录失败锁定 | `SwitchSettingCard` | 连续失败 5 次后锁定账户 15 分钟（需超管手动解锁） | `[security] lockout_enabled` |
+| 当前登录信息 | 展示卡片（只读） | 显示：用户名、角色、最后登录时间 | — |
+
+#### 分组 4：导入与导出
+
+| 配置项 | 控件类型 | 说明 | 写入 config.ini |
+| :--- | :--- | :--- | :--- |
+| 导出时包含变更履历 | `SwitchSettingCard` | 开启时导出 Excel 附带变更履历 Sheet | `[export] include_change_log` |
+| 导出时包含零件快照 | `SwitchSettingCard` | 开启时以 BOM 保存时的快照数据导出，不实时查询母表 | `[export] use_snapshot` |
+| 导出文件命名规则 | `ComboBoxSettingCard` | `BOM编号_版本` / `BOM编号_日期` / 手动命名 | `[export] filename_pattern` |
+| 导入时陌生零件处理 | `ComboBoxSettingCard` | 报错中止 / 跳过该行 / 提示后决定 | 提示后决定 | `[import] unknown_part_action` |
+| 导入预检是否必须确认 | `SwitchSettingCard` | 关闭后直接导入（不推荐） | `[import] require_preview_confirm` |
+
+#### 分组 5：关于
+
+| 项目 | 内容 |
+| :--- | :--- |
+| 应用名称 | BOM 管理系统 |
+| 版本号 | `v1.0.0`（从 `version.py` 读取） |
+| 构建日期 | 打包时注入 |
+| 数据库版本 | 当前 schema 版本号（用于迁移检查） |
+| 开源许可 | 内部工具，不对外发布 |
+| [检查更新] | 按钮（预留，当前灰色禁用） |
+| [查看日志文件夹] | 按钮，打开 `logs/` 目录 |
+| [重置所有设置] | 危险按钮（红色），确认弹窗后将 `config.ini` 恢复默认值 |
+
+### 12.3 设置持久化机制
+
+- 所有配置读写均通过 `app/utils/config_manager.py` 的 `ConfigManager` 单例完成，封装 `configparser`。
+- 页面加载时从 `ConfigManager` 读取当前值初始化控件。
+- 每次控件值变化时**立即写入** `config.ini`（无需手动点击"保存"），但需重启生效的项目会显示提示横幅。
+- `config.ini` 不存在时，`ConfigManager` 自动以默认值创建。
+
+### 12.4 新增文件
+
+```
+app/
+├── utils/
+│   └── config_manager.py          # ConfigManager 单例，封装 configparser
+├── ui/
+│   └── pages/
+│       └── settings_page.py       # 设置页面，使用 SettingCardGroup 分组布局
+```
+
+对应在 `config.ini` 中补充以下字段：
+
+```ini
+[app]
+theme = light
+language = zh_CN
+font_size = 14
+window_maximized = false
+
+[database]
+path = data/bom.db
+auto_backup = false
+backup_keep_count = 7
+
+[security]
+min_password_length = 8
+pwd_require_upper = true
+pwd_require_digit = true
+pwd_require_special = false
+session_timeout_minutes = 0
+lockout_enabled = false
+
+[export]
+default_export_dir = exports/
+include_change_log = true
+use_snapshot = true
+filename_pattern = bom_version
+
+[import]
+unknown_part_action = prompt
+require_preview_confirm = true
+```
+
+---
+
+## 13. 开发阶段规划
 
 ### 第一阶段：基础架构（里程碑 M1）
 - [ ] 搭建项目目录结构，配置 `requirements.txt`。
@@ -558,6 +693,7 @@ bcrypt>=4.0.0
 - [ ] BOM 历史版本查看与差异对比（行级高亮：新增/删除/修改）。
 - [ ] 审计日志查询页面（分页 + 多维度筛选）。
 - [ ] 仪表盘统计卡片。
+- [ ] 系统设置页面（`ConfigManager` + 5 个分组卡片 + 实时写入 config.ini）。
 - [ ] PyInstaller 打包测试与发布。
 
 ---
