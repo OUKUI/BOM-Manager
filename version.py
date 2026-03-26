@@ -1,0 +1,3 @@
+VERSION = "1.0.0"
+BUILD_DATE = "2026"
+APP_NAME = "BOM 管理系统"
